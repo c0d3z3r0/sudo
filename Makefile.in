@@ -16,10 +16,10 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-srcdir = @srcdir@
-devdir = @devdir@
-top_builddir = @top_builddir@
-top_srcdir = @top_srcdir@
+srcdir = $(realpath @srcdir@)
+devdir = $(realpath @devdir@)
+top_builddir = $(realpath @top_builddir@)
+top_srcdir = $(realpath @top_srcdir@)
 
 # Installation paths for package building
 prefix = @prefix@
