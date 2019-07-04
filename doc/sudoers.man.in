@@ -3827,6 +3827,21 @@ Commands run via
 with a different parent process ID, for example from a shell script,
 will be authenticated separately.
 .TP 8n
+session
+A single time stamp record is used for all processes with the same audit
+session id (usually the parent shell).
+Commands run from the same shell (or other common parent process)
+will not require a password for
+\fItimestamp_timeout\fR
+minutes
+(\fR@timeout@\fR
+by default)
+\&.
+Commands run via
+\fBsudo\fR
+with a different parent process group ID, for example from a shell script,
+will be authenticated separately.
+.TP 8n
 tty
 One time stamp record is used for each terminal,
 which means that a user's login sessions are authenticated separately.

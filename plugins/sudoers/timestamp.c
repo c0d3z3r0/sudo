@@ -47,6 +47,9 @@
 #include <pwd.h>
 #include <grp.h>
 #include <signal.h>
+#ifdef HAVE_LINUX_AUDIT
+# include <libaudit.h>
+#endif /* HAVE_LINUX_AUDIT */
 
 #include "sudoers.h"
 #include "check.h"
@@ -119,6 +122,27 @@ ts_match_record(struct timestamp_entry *key, struct timestamp_entry *entry,
 	    debug_return_bool(false);
 	}
 	break;
+#ifdef HAVE_LINUX_AUDIT
+    case TS_SESSION:
+	/* verify session id */
+	if (entry->u.session >= INT_MAX || key->u.session >= INT_MAX) {
+	    sudo_debug_printf(SUDO_DEBUG_DEBUG,
+		"%s:%u audit session id not available", __func__, recno);
+	    debug_return_bool(false);
+	}
+	if (entry->u.session != key->u.session) {
+	    sudo_debug_printf(SUDO_DEBUG_DEBUG,
+		"%s:%u record session mismatch (want %d, got %d)", __func__, recno,
+		(int)key->u.session, (int)entry->u.session);
+	    debug_return_bool(false);
+	}
+	if (sudo_timespeccmp(&entry->start_time, &key->start_time, !=)) {
+	    sudo_debug_printf(SUDO_DEBUG_DEBUG,
+		"%s:%u session start time mismatch", __func__, recno);
+	    debug_return_bool(false);
+	}
+	break;
+#endif /* HAVE_LINUX_AUDIT */
     case TS_TTY:
 	if (entry->u.ttydev != key->u.ttydev) {
 	    sudo_debug_printf(SUDO_DEBUG_DEBUG,
@@ -392,6 +416,14 @@ ts_init_key(struct timestamp_entry *entry, struct passwd *pw, int flags,
 	entry->u.ppid = getppid();
 	get_starttime(entry->u.ppid, &entry->start_time);
 	break;
+#ifdef HAVE_LINUX_AUDIT
+    case session:
+	/* session-based time stamp */
+	entry->type = TS_SESSION;
+	entry->u.session = audit_get_session();
+	get_starttime(entry->u.session, &entry->start_time);
+	break;
+#endif /* HAVE_LINUX_AUDIT */
     case global:
 	/* global time stamp */
 	entry->type = TS_GLOBAL;
@@ -408,8 +440,14 @@ ts_init_key_nonglobal(struct timestamp_entry *entry, struct passwd *pw, int flag
      * Even if the timestamp type is global or kernel we still want to do
      * per-tty or per-ppid locking so sudo works predictably in a pipeline.
      */
-    ts_init_key(entry, pw, flags,
-	def_timestamp_type == ppid ? ppid : tty);
+    if (def_timestamp_type == ppid)
+        ts_init_key(entry, pw, flags, ppid);
+#ifdef HAVE_LINUX_AUDIT
+    else if (def_timestamp_type == session)
+        ts_init_key(entry, pw, flags, session);
+#endif /* HAVE_LINUX_AUDIT */
+    else
+        ts_init_key(entry, pw, flags, tty);
 }
 
 /*
@@ -612,6 +650,21 @@ done:
     debug_return_ssize_t(nread);
 }
 
+static char *
+type2str(enum def_tuple type)
+{
+    switch (type) {
+    case ppid:
+        return "ppid";
+#ifdef HAVE_LINUX_AUDIT
+    case session:
+        return "session";
+#endif /* HAVE_LINUX_AUDIT */
+    default:
+        return "tty";
+    }
+}
+
 /*
  * Lock a record in the time stamp file for exclusive access.
  * If the record does not exist, it is created (as disabled).
@@ -666,27 +719,25 @@ timestamp_lock(void *vcookie, struct passwd *pw)
 	}
     }
 
+
     /* Search for a tty/ppid-based record or append a new one. */
     sudo_debug_printf(SUDO_DEBUG_DEBUG|SUDO_DEBUG_LINENO,
-	"searching for %s time stamp record",
-	def_timestamp_type == ppid ? "ppid" : "tty");
+	"searching for %s time stamp record", type2str(def_timestamp_type));
     ts_init_key_nonglobal(&cookie->key, pw, TS_DISABLED);
     if (ts_find_record(cookie->fd, &cookie->key, &entry)) {
 	sudo_debug_printf(SUDO_DEBUG_DEBUG|SUDO_DEBUG_LINENO,
-	    "found existing %s time stamp record",
-	    def_timestamp_type == ppid ? "ppid" : "tty");
+	    "found existing %s time stamp record", type2str(def_timestamp_type));
 	lock_pos = lseek(cookie->fd, 0, SEEK_CUR) - (off_t)entry.size;
     } else {
 	sudo_debug_printf(SUDO_DEBUG_DEBUG|SUDO_DEBUG_LINENO,
-	    "appending new %s time stamp record",
-	    def_timestamp_type == ppid ? "ppid" : "tty");
+	    "appending new %s time stamp record", type2str(def_timestamp_type));
 	lock_pos = lseek(cookie->fd, 0, SEEK_CUR);
 	if (ts_write(cookie->fd, cookie->fname, &cookie->key, -1) == -1)
 	    debug_return_bool(false);
     }
     sudo_debug_printf(SUDO_DEBUG_DEBUG|SUDO_DEBUG_LINENO,
-	"%s time stamp position is %lld",
-	def_timestamp_type == ppid ? "ppid" : "tty", (long long)lock_pos);
+	"%s time stamp position is %lld", type2str(def_timestamp_type),
+	(long long)lock_pos);
 
     if (def_timestamp_type == global) {
 	/*
@@ -808,7 +859,11 @@ timestamp_status(void *vcookie, struct passwd *pw)
 	goto done;
     }
 
-    if (entry.type != TS_GLOBAL && entry.sid != cookie->sid) {
+    if (entry.type != TS_GLOBAL &&
+#ifdef HAVE_LINUX_AUDIT
+	entry.type != TS_SESSION &&
+#endif
+	entry.sid != cookie->sid) {
 	sudo_debug_printf(SUDO_DEBUG_DEBUG|SUDO_DEBUG_LINENO,
 	    "time stamp record sid mismatch");
 	status = TS_OLD;	/* belongs to different session */

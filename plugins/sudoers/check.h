@@ -24,6 +24,8 @@
 #ifndef SUDOERS_CHECK_H
 #define SUDOERS_CHECK_H
 
+#include <stdint.h>
+
 /* Status codes for timestamp_status() */
 #define TS_CURRENT		0
 #define TS_OLD			1
@@ -42,7 +44,10 @@
 #define TS_GLOBAL		0x01	/* not restricted by tty or ppid */
 #define TS_TTY			0x02	/* restricted by tty */
 #define TS_PPID			0x03	/* restricted by ppid */
-#define TS_LOCKEXCL		0x04	/* special lock record */
+#ifdef HAVE_LINUX_AUDIT
+# define TS_SESSION	0x04	/* restricted by audit session */
+#endif /* HAVE_LINUX_AUDIT */
+#define TS_LOCKEXCL		0x05	/* special lock record */
 
 /* Time stamp flags */
 #define TS_DISABLED		0x01	/* entry disabled */
@@ -59,13 +64,16 @@ struct timestamp_entry_v1 {
     union {
 	dev_t ttydev;		/* tty device number */
 	pid_t ppid;		/* parent pid */
+#ifdef HAVE_LINUX_AUDIT
+	uint32_t session;		/* session */
+#endif /* HAVE_LINUX_AUDIT */
     } u;
 };
 
 struct timestamp_entry {
     unsigned short version;	/* version number */
     unsigned short size;	/* entry size */
-    unsigned short type;	/* TS_GLOBAL, TS_TTY, TS_PPID */
+    unsigned short type;	/* TS_GLOBAL, TS_TTY, TS_PPID, TS_SESSION */
     unsigned short flags;	/* TS_DISABLED, TS_ANYUID */
     uid_t auth_uid;		/* uid to authenticate as */
     pid_t sid;			/* session ID associated with tty/ppid */
@@ -74,6 +82,9 @@ struct timestamp_entry {
     union {
 	dev_t ttydev;		/* tty device number */
 	pid_t ppid;		/* parent pid */
+#ifdef HAVE_LINUX_AUDIT
+	uint32_t session;		/* audit session */
+#endif /* HAVE_LINUX_AUDIT */
     } u;
 };
 

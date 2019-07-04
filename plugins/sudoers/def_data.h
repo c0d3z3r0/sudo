@@ -238,6 +238,9 @@ enum def_tuple {
 	digest_only,
 	global,
 	ppid,
+#ifdef HAVE_LINUX_AUDIT
+	session,
+#endif /* HAVE_LINUX_AUDIT */
 	tty,
 	kernel
 };

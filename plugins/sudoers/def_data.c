@@ -31,6 +31,9 @@ static struct def_values def_data_fdexec[] = {
 static struct def_values def_data_timestamp_type[] = {
     { "global", global },
     { "ppid", ppid },
+#ifdef HAVE_LINUX_AUDIT
+    { "session", session },
+#endif /* HAVE_LINUX_AUDIT */
     { "tty", tty },
     { "kernel", kernel },
     { NULL, 0 },

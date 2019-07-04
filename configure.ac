@@ -1602,9 +1602,9 @@ AC_ARG_ENABLE(sasl,
 ])
 
 AC_ARG_ENABLE(timestamp-type,
-[AS_HELP_STRING([--timestamp-type=TYPE], [Set the default time stamp record type to global, ppid or tty.])],
+[AS_HELP_STRING([--timestamp-type=TYPE], [Set the default time stamp record type to global, ppid, session or tty.])],
 [ case "$enableval" in
-    global|ppid|tty)
+    global|ppid|session|tty)
 	    timestamp_type=$enableval
 	    ;;
     *)	    AC_MSG_WARN([Ignoring unknown argument to --enable-timestamp-type: $enableval])
@@ -4575,7 +4575,7 @@ AH_TEMPLATE(NO_LECTURE, [Define to 1 if you don't want users to get the lecture 
 AH_TEMPLATE(NO_PAM_SESSION, [Define to 1 if you don't want to use sudo's PAM session support.])
 AH_TEMPLATE(NO_ROOT_MAILER, [Define to avoid runing the mailer as root.])
 AH_TEMPLATE(NO_ROOT_SUDO, [Define to 1 if root should not be allowed to use sudo.])
-AH_TEMPLATE(TIMESTAMP_TYPE, [Define to global, ppid or tty to set the default timestamp record type.])
+AH_TEMPLATE(TIMESTAMP_TYPE, [Define to global, ppid, session or tty to set the default timestamp record type.])
 AH_TEMPLATE(OFFENSIVE_INSULTS, [Define to 1 to include offensive insults from the classic version of sudo.])
 AH_TEMPLATE(PREFER_PORTABLE_GETCWD, [Define to 1 to enable replacement getcwd if system getcwd is broken.])
 AH_TEMPLATE(SECURE_PATH, [A colon-separated list of directories to override the user's PATH with.])

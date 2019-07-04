@@ -628,8 +628,9 @@ Options that set runtime-changeable default values:
   --enable-timestamp-type=TYPE
         Set the default time stamp record type.  The TYPE may be "global"
 	(a single record per user), "ppid" (a single record for process
-	with the same parent process), or "tty" (a separate record for
-	each login session).  The default is "tty".
+	with the same parent process), "session" (a single record for process
+	with the same session) or "tty" (a separate record for each login session).
+	The default is "tty".
 	Sudoers option: timestamp_type
 
   --with-all-insults

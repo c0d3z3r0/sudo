@@ -1119,7 +1119,8 @@
 /* The number of minutes before sudo asks for a password again. */
 #undef TIMEOUT
 
-/* Define to global, ppid or tty to set the default timestamp record type. */
+/* Define to global, ppid, session or tty to set the default timestamp record
+   type. */
 #undef TIMESTAMP_TYPE
 
 /* The number of tries a user gets to enter their password. */

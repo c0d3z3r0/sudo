@@ -45,7 +45,7 @@
 struct timestamp_entry_common {
     unsigned short version;	/* version number */
     unsigned short size;	/* entry size */
-    unsigned short type;	/* TS_GLOBAL, TS_TTY, TS_PPID */
+    unsigned short type;	/* TS_GLOBAL, TS_TTY, TS_PPID, TS_SESSION */
     unsigned short flags;	/* TS_DISABLED, TS_ANYUID */
 };
 
@@ -206,6 +206,8 @@ type2string(int type)
 	debug_return_str("TS_TTY");
     case TS_PPID:
 	debug_return_str("TS_PPID");
+    case TS_SESSION:
+	debug_return_str("TS_SESSION");
     }
     (void)snprintf(name, sizeof(name), "UNKNOWN (0x%x)", type);
     debug_return_str(name);
@@ -262,6 +264,8 @@ convert_entry(union timestamp_entry_storage *record, struct timespec *off)
 	    record->v2.u.ttydev = orig.v1.u.ttydev;
 	else if (record->common.type == TS_PPID)
 	    record->v2.u.ppid = orig.v1.u.ppid;
+	else if (record->common.type == TS_SESSION)
+	    record->v2.u.session = orig.v1.u.session;
 	else
 	    memset(&record->v2.u, 0, sizeof(record->v2.u));
     }
@@ -303,6 +307,8 @@ dump_entry(struct timestamp_entry *entry, off_t pos)
 	    printf("terminal: %s\n", tty);
     } else if (entry->type == TS_PPID) {
 	printf("parent pid: %d\n", (int)entry->u.ppid);
+    } else if (entry->type == TS_SESSION) {
+	printf("session: %d\n", (int)entry->u.session);
     }
     printf("\n");
 
