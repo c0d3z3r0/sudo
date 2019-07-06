@@ -147,6 +147,7 @@ struct policy_plugin {
 	const char *list_user);
     int (*validate)(void);
     void (*invalidate)(int remove);
+    int (*keepalive)(void);
     int (*init_session)(struct passwd *pwd, char **user_env_out[]);
     void (*register_hooks)(int version, int (*register_hook)(struct sudo_hook *hook));
     void (*deregister_hooks)(int version, int (*deregister_hook)(struct sudo_hook *hook));

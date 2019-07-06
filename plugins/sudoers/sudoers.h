@@ -264,6 +264,7 @@ int find_path(const char *infile, char **outfile, struct stat *sbp,
 /* check.c */
 int check_user(int validate, int mode);
 bool user_is_exempt(void);
+struct passwd *get_authpw(int mode);
 
 /* prompt.c */
 char *expand_prompt(const char *old_prompt, const char *auth_user);

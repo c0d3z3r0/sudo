@@ -48,7 +48,6 @@
 #include "check.h"
 
 static bool display_lecture(int);
-static struct passwd *get_authpw(int);
 
 struct getpass_closure {
     void *cookie;
@@ -296,7 +295,7 @@ user_is_exempt(void)
  * By default, this is the user invoking sudo.  In the most common
  * case, this matches sudo_user.pw or runas_pw.
  */
-static struct passwd *
+struct passwd *
 get_authpw(int mode)
 {
     struct passwd *pw = NULL;

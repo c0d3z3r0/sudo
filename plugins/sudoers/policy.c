@@ -42,6 +42,7 @@
 #include "sudoers.h"
 #include "sudoers_version.h"
 #include "interfaces.h"
+#include "check.h"
 
 /*
  * Info passed in from the sudo front-end.
@@ -886,6 +887,49 @@ sudoers_policy_validate(void)
     debug_return_int(sudoers_policy_main(0, NULL, I_VERIFYPW, NULL, false, NULL));
 }
 
+static int
+sudoers_policy_keepalive(void)
+{
+        int ret = -1;
+        int status;
+        struct passwd *auth_pw;
+        struct ts_cookie *cookie;
+
+    debug_decl(sudoers_policy_keepalive, SUDOERS_DEBUG_PLUGIN)
+
+    if ((auth_pw = get_authpw(sudoers_mode)) == NULL ||
+        sudo_auth_init(auth_pw) == -1) {
+            sudo_warnx("keepalive: getting authpw failed");
+            ret = false;
+            goto done;
+    }
+
+    cookie = timestamp_open(user_name, user_sid);
+    if (!timestamp_lock(cookie, runas_pw)) {
+        sudo_warnx("keepalive: timestamp locking failed");
+        ret = false;
+        goto done;
+    }
+
+    status = timestamp_status(cookie, runas_pw);
+    if (status != TS_CURRENT) {
+        sudo_warnx("keepalive: timestamp is invalid");
+        ret = false;
+        goto done;
+    }
+
+    (void)timestamp_update(cookie, runas_pw);
+
+done:
+    if (cookie != NULL)
+        timestamp_close(cookie);
+
+    sudo_auth_cleanup(auth_pw);
+    sudo_pw_delref(auth_pw);
+
+    debug_return_int(ret);
+}
+
 static void
 sudoers_policy_invalidate(int remove)
 {
@@ -994,6 +1038,7 @@ __dso_public struct policy_plugin sudoers_policy = {
     sudoers_policy_list,
     sudoers_policy_validate,
     sudoers_policy_invalidate,
+    sudoers_policy_keepalive,
     sudoers_policy_init_session,
     sudoers_policy_register_hooks
 };

@@ -479,6 +479,7 @@ __dso_public struct policy_plugin sample_policy = {
     policy_list,
     NULL, /* validate */
     NULL, /* invalidate */
+    NULL, /* keepalive */
     NULL, /* init_session */
     NULL, /* register_hooks */
     NULL /* deregister_hooks */

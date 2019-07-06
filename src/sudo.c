@@ -120,6 +120,9 @@ static int policy_check(struct plugin_container *plugin, int argc,
 static int policy_list(struct plugin_container *plugin, int argc,
     char * const argv[], int verbose, const char *list_user);
 static int policy_validate(struct plugin_container *plugin);
+static int policy_keepalive(struct plugin_container *plugin);
+static void policy_keepalive_handler(int sig, siginfo_t *si, void *uc);
+static void policy_keepalive_setup(struct plugin_container *plugin);
 static void policy_invalidate(struct plugin_container *plugin, int remove);
 
 /* I/O log plugin convenience functions. */
@@ -263,6 +266,12 @@ main(int argc, char *argv[], char *envp[])
 		continue;
 	    if (nargc == 0)
 		sudo_fatalx(U_("plugin did not return a command to execute"));
+
+            /* start background task if requested */
+            //todo: add a parameter
+            if((sudo_mode & MODE_MASK) == MODE_RUN)
+                policy_keepalive_setup(&policy_plugin);
+
 	    /* Open I/O plugins once policy plugin succeeds. */
 	    TAILQ_FOREACH_SAFE(plugin, &io_plugins, entries, next) {
 		ok = iolog_open(plugin, settings, user_info,
@@ -1185,6 +1194,45 @@ policy_list(struct plugin_container *plugin, int argc, char * const argv[],
     debug_return_int(ret);
 }
 
+static void
+policy_keepalive_handler(int sig, siginfo_t *si, void *uc) {
+    struct plugin_container *plugin;
+
+    debug_decl(policy_keepalive_handler, SUDO_DEBUG_PCOMM)
+
+    plugin = si->si_value.sival_ptr;
+    policy_keepalive(plugin);
+
+}
+
+static void
+policy_keepalive_setup(struct plugin_container *plugin) {
+    timer_t timerid;
+    struct sigevent sev;
+    struct sigaction sa;
+    struct itimerspec its = {0};
+
+    debug_decl(policy_keepalive_setup, SUDO_DEBUG_PCOMM)
+
+    its.it_value.tv_sec =       30;
+    its.it_interval.tv_sec =    30;
+    sev.sigev_notify =          SIGEV_SIGNAL;
+    sev.sigev_signo =           SIGRTMIN;
+    sa.sa_flags =               SA_SIGINFO;
+    sa.sa_sigaction =           policy_keepalive_handler;
+    sev.sigev_value.sival_ptr = plugin;
+
+    sigemptyset(&sa.sa_mask);
+    if (sigaction(SIGRTMIN, &sa, NULL) == -1)
+        sudo_fatalx("sigaction");
+
+    if (timer_create(CLOCK_MONOTONIC, &sev, &timerid) == -1)
+        sudo_fatalx("timer_create");
+
+    if (timer_settime(timerid, 0, &its, NULL) == -1)
+         sudo_fatalx("timer_settime");
+}
+
 static int
 policy_validate(struct plugin_container *plugin)
 {
@@ -1198,6 +1246,23 @@ policy_validate(struct plugin_container *plugin)
     }
     sudo_debug_set_active_instance(plugin->debug_instance);
     ret = plugin->u.policy->validate();
+    sudo_debug_set_active_instance(sudo_debug_instance);
+    debug_return_int(ret);
+}
+
+static int
+policy_keepalive(struct plugin_container *plugin)
+{
+    int ret;
+    debug_decl(policy_keepalive, SUDO_DEBUG_PCOMM)
+
+    if (plugin->u.policy->keepalive == NULL) {
+	sudo_warnx(U_("policy plugin %s does not support keepalive"),
+	    plugin->name);
+	debug_return_int(false);
+    }
+    sudo_debug_set_active_instance(plugin->debug_instance);
+    ret = plugin->u.policy->keepalive();
     sudo_debug_set_active_instance(sudo_debug_instance);
     debug_return_int(ret);
 }
